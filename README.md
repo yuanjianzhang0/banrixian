@@ -42,8 +42,8 @@
   <a href="https://fastapi.tiangolo.com/">
     <img alt="FastAPI" src="https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white">
   </a>
-  <a href="https://platform.openai.com/">
-    <img alt="LLM" src="https://img.shields.io/badge/LLM-OpenAI_Compatible-412991?logo=openai&logoColor=white">
+  <a href="https://www.deepseek.com">
+    <img alt="LLM" src="https://img.shields.io/badge/Deepseek-V4-Flash?logo=deepseek&logoColor=white">
   </a>
   <a href="https://lbs.amap.com/">
     <img alt="Amap" src="https://img.shields.io/badge/Map-AMap_API-1677FF">
