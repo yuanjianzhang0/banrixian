@@ -371,6 +371,54 @@
       font-size: 11.5px; font-weight: 700; background: rgba(255,102,0,.08); color: var(--brand);
     }
 
+    /* ─── DEMO VIDEO ─────────────────────────────────────────────── */
+    .demo-showcase {
+      max-width: 1040px; margin: 0 auto;
+      display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+      gap: 42px; align-items: center;
+    }
+    .demo-copy .section-sub { margin-bottom: 24px; }
+    .demo-points { display: grid; gap: 12px; }
+    .demo-point {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: var(--ink-2); line-height: 1.65;
+    }
+    .demo-point svg {
+      width: 18px; height: 18px; color: var(--brand);
+      margin-top: 3px; flex-shrink: 0;
+    }
+    .demo-frame {
+      position: relative; overflow: hidden;
+      border-radius: 24px; background: #111;
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 28px 80px rgba(0,0,0,.20);
+    }
+    .demo-frame::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.14), transparent 18%),
+        radial-gradient(circle at 20% 0%, rgba(255,209,0,.18), transparent 34%);
+      mix-blend-mode: screen;
+    }
+    .demo-video {
+      display: block; width: 100%; aspect-ratio: 16/9; height: auto;
+      object-fit: cover; background: #111;
+    }
+    .demo-caption {
+      position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 2;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 12px; border-radius: 14px;
+      background: rgba(0,0,0,.48); color: rgba(255,255,255,.82);
+      backdrop-filter: blur(12px); font-size: 12px; font-weight: 700;
+    }
+    .demo-caption span { color: var(--mt-yellow); }
+    @media (max-width: 860px) {
+      .demo-showcase { grid-template-columns: 1fr; gap: 28px; }
+      .demo-copy { text-align: center; }
+      .demo-copy .section-sub { margin-left: auto; margin-right: auto; }
+      .demo-points { max-width: 520px; margin: 0 auto; text-align: left; }
+    }
+
     /* ─── HOW IT WORKS ──────────────────────────────────────────── */
     .how-grid { max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; }
     @media (max-width: 740px) { .how-grid { grid-template-columns: 1fr; gap: 36px; } }
@@ -821,6 +869,28 @@
         <div class="feat-card__desc">最终不只展示路线，还生成餐厅预约、商品下单、同行人通知和行程分享草稿，用户确认后一次执行。</div>
         <span class="feat-tag" style="background:rgba(52,199,89,.08);color:#34C759">履约闭环</span>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── DEMO VIDEO ───────────────────────────────────────────────── -->
+<section class="section">
+  <div class="demo-showcase">
+    <div class="demo-copy">
+      <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-zap"/></svg> 产品 Demo</p>
+      <h2 class="section-title">看它如何把一句话，变成可执行行程</h2>
+      <p class="section-sub">演示从自然语言输入、AI 思考过程、多方案规划，到地点卡片、预约草稿和同行人分享的完整闭环。</p>
+      <div class="demo-points">
+        <div class="demo-point"><svg><use href="#i-check"/></svg><span>实时展示 Agent 工具调用和规划进度，评委能看到 AI 如何做判断。</span></div>
+        <div class="demo-point"><svg><use href="#i-check"/></svg><span>地点卡片明确写出到哪里、买什么、为什么买，以及如何确认执行。</span></div>
+        <div class="demo-point"><svg><use href="#i-check"/></svg><span>最终沉淀为预约、通知和分享动作，突出“不是推荐，是安排”。</span></div>
+      </div>
+    </div>
+    <div class="demo-frame reveal">
+      <video class="demo-video" src="/assets/demo.mov" controls preload="metadata" playsinline poster="/assets/captcha-travel-bg-small.png">
+        你的浏览器暂不支持视频播放。
+      </video>
+      <div class="demo-caption"><span>半日闲 AI</span> 本地生活执行 Agent 演示</div>
     </div>
   </div>
 </section>
