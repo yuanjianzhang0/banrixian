@@ -55,7 +55,8 @@
     /* ─── NAV ──────────────────────────────────────────────────── */
     .nav {
       position: sticky; top: 0; z-index: 200;
-      height: 56px; display: flex; align-items: center; justify-content: space-between;
+      height: 56px; display: grid; grid-template-columns: minmax(150px, 1fr) auto minmax(260px, 1fr);
+      align-items: center;
       padding: 0 max(24px, 5%);
       background: rgba(255,255,255,.95);
       backdrop-filter: blur(16px) saturate(180%);
@@ -64,15 +65,18 @@
     }
     .nav.scrolled { box-shadow: 0 2px 20px rgba(0,0,0,.08); }
 
-    .nav__brand { display: flex; align-items: center; gap: 10px; }
-    .nav__logo  { height: 26px; }
-    .nav__name  { font-size: 16px; font-weight: 900; letter-spacing: -.3px; color: var(--ink); }
+    .nav__brand { display: inline-flex; align-items: center; justify-self: start; gap: 10px; min-width: 150px; }
+    .nav__logo  {
+      width: 34px; height: 34px; object-fit: cover; object-position: top center;
+      border-radius: 9px; filter: drop-shadow(0 4px 10px rgba(17,24,39,.10));
+    }
+    .nav__name  { font-size: 15px; font-weight: 900; letter-spacing: -.2px; color: var(--ink); white-space: nowrap; }
 
     .nav__links { display: flex; gap: 24px; list-style: none; align-items: center; }
     .nav__links a { font-size: 14px; color: var(--ink-2); font-weight: 600; transition: color .15s; }
     .nav__links a:hover { color: var(--brand); }
 
-    .nav__right { display: flex; align-items: center; gap: 10px; }
+    .nav__right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 
     .nav__gh,
     .nav__doc {
@@ -93,9 +97,13 @@
     .nav__cta:hover { background: var(--brand-dark); transform: translateY(-1px); }
 
     @media (max-width: 720px) {
+      .nav { grid-template-columns: auto 1fr auto; gap: 12px; }
       .nav__links { display: none; }
       .nav__gh span { display: none; }
       .nav__doc span { display: none; }
+      .nav__brand { min-width: 0; }
+      .nav__logo { width: 30px; height: 30px; }
+      .nav__name { display: none; }
     }
 
     /* ─── HACKATHON HERO ───────────────────────────────────────── */
@@ -295,19 +303,22 @@
     .mt-hackathon-card {
       background: var(--mt-dark);
       border-radius: 24px; padding: 36px 32px;
-      display: flex; align-items: center; gap: 28px;
+      display: grid; grid-template-columns: 128px minmax(0, 1fr); align-items: center; gap: 28px;
       max-width: 900px; margin: 0 auto 52px;
       box-shadow: 0 8px 40px rgba(0,0,0,.12);
-      flex-wrap: wrap;
+      text-align: left;
     }
     .mt-hk-logo {
-      flex-shrink: 0;
+      width: 108px; height: 108px;
+      display: flex; align-items: center; justify-content: center;
       background: var(--mt-yellow); color: var(--mt-dark);
       border-radius: 16px; padding: 14px 20px;
       font-size: 22px; font-weight: 900; letter-spacing: 1px;
       white-space: nowrap;
+      line-height: 1.45;
+      box-shadow: 0 14px 32px rgba(255,209,0,.18);
     }
-    .mt-hk-body { flex: 1; min-width: 200px; }
+    .mt-hk-body { min-width: 0; }
     .mt-hk-body h3 { font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 8px; }
     .mt-hk-body p  { font-size: 14px; color: rgba(255,255,255,.5); line-height: 1.65; }
     .mt-hk-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -315,6 +326,15 @@
       background: rgba(255,209,0,.12); color: var(--mt-yellow);
       border: 1px solid rgba(255,209,0,.2);
       border-radius: 100px; padding: 3px 12px; font-size: 12px; font-weight: 700;
+    }
+    @media (max-width: 720px) {
+      .mt-hackathon-card {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+        padding: 30px 22px;
+      }
+      .mt-hk-tags { justify-content: center; }
     }
 
     /* ─── FEATURES GRID ─────────────────────────────────────────── */
@@ -383,25 +403,42 @@
 
     .scene-card {
       border-radius: 18px; overflow: hidden; aspect-ratio: 3/4;
-      position: relative; transition: transform .22s;
+      position: relative; transition: transform .22s, box-shadow .22s;
+      box-shadow: 0 12px 30px rgba(20,20,24,.08);
+      isolation: isolate;
     }
-    .scene-card:hover { transform: scale(1.03); }
-    .scene-bg  { position: absolute; inset: 0; }
-    .s-cu { background: linear-gradient(155deg,#1a237e,#3949ab,#5c6bc0); }
-    .s-fo { background: linear-gradient(155deg,#bf360c,#e64a19,#ff7043); }
-    .s-na { background: linear-gradient(155deg,#1b5e20,#388e3c,#66bb6a); }
-    .s-fa { background: linear-gradient(155deg,#4a148c,#7b1fa2,#ab47bc); }
-    .s-dt { background: linear-gradient(155deg,#880e4f,#c2185b,#ec407a); }
+    .scene-card:hover { transform: translateY(-5px); box-shadow: 0 22px 46px rgba(20,20,24,.16); }
+    .scene-bg  {
+      position: absolute; inset: 0;
+      background-size: cover;
+      background-position: center;
+      transform: scale(1.02);
+      transition: transform .5s ease;
+    }
+    .scene-card:hover .scene-bg { transform: scale(1.08); }
+    .scene-card::after {
+      content: ''; position: absolute; inset: 0;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.14), transparent 35%),
+        linear-gradient(0deg, rgba(0,0,0,.78), rgba(0,0,0,.04) 58%);
+      z-index: 1;
+    }
+    .s-cu { background-image: url('/assets/scenes/culture.jpg'); }
+    .s-fo { background-image: url('/assets/scenes/food.jpg'); }
+    .s-na { background-image: url('/assets/scenes/nature.jpg'); }
+    .s-fa { background-image: url('/assets/scenes/family.jpg'); }
+    .s-dt { background-image: url('/assets/scenes/date.jpg'); }
     .scene-icon {
       position: absolute; top: 14px; left: 14px;
       width: 34px; height: 34px; border-radius: 9px;
       background: rgba(255,255,255,.18); backdrop-filter: blur(8px);
       display: flex; align-items: center; justify-content: center; color: #fff;
+      z-index: 2;
     }
     .scene-icon svg { width: 18px; height: 18px; }
     .scene-info {
       position: absolute; bottom: 0; left: 0; right: 0; padding: 12px;
-      background: linear-gradient(transparent, rgba(0,0,0,.55));
+      z-index: 2;
     }
     .scene-name { font-size: 14px; font-weight: 800; color: #fff; }
     .scene-sub  { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
@@ -596,6 +633,7 @@
   <a class="nav__brand" href="/">
     <img src="/assets/main_logo.png" alt="半日闲 AI" class="nav__logo"
          onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'nav__name',textContent:'半日闲 AI'}))">
+    <span class="nav__name">半日闲 AI</span>
   </a>
   <ul class="nav__links">
     <li><a href="#features">产品特色</a></li>
