@@ -1,0 +1,7 @@
+从零运行:pm2 start "/usr/bin/python -m uvicorn main:app --host 0.0.0.0 --port 3000" --name "banrixian-api"
+
+重启服务:pm2 restart banrixian-api
+
+查看运行的服务:pm2 ls
+
+查看日志:pm2 logs banrixian-api

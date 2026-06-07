@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>半日闲 AI — 美团黑客松 · 从想法到下单的本地生活执行 Agent</title>
+  <meta name="description" content="半日闲AI：美团黑客松参赛作品。本地生活执行 Agent，读懂自然语言目标，组合真实地点、天气、余位、多方案评分和预约/通知草稿，把半日出行从推荐变成可确认执行。" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --mt-yellow:   #FFD100;   /* 美团品牌黄 */
+      --mt-dark:     #1A1A1A;   /* 美团深色 */
+      --brand:       #FF6600;   /* 产品主色（美团橙） */
+      --brand-dark:  #E05500;
+      --ink:         #1A1A1A;
+      --ink-2:       #3C3C3E;
+      --ink-3:       #8E8E93;
+      --bg:          #F7F7F8;
+      --card:        #FFFFFF;
+      --border:      #E8E8EE;
+      --radius:      16px;
+      --shadow:      0 2px 16px rgba(0,0,0,.06);
+      --shadow-lg:   0 12px 48px rgba(0,0,0,.10);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      /* 雅黑优先 */
+      font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB",
+                   "WenQuanYi Micro Hei", "Segoe UI", sans-serif;
+      color: var(--ink); background: #fff; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+    svg.icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+
+    /* ─── 美团顶栏（黑色，与美团官网一致）─────────────────────── */
+    .mt-topbar {
+      background: var(--mt-dark); color: rgba(255,255,255,.6);
+      font-size: 12px; padding: 7px max(24px, 5%);
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      letter-spacing: .3px;
+    }
+    .mt-topbar strong { color: var(--mt-yellow); font-weight: 700; }
+    .mt-topbar-logo {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--mt-yellow); color: var(--mt-dark);
+      border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 900;
+      letter-spacing: .5px; margin-right: 4px;
+    }
+
+    /* ─── NAV ──────────────────────────────────────────────────── */
+    .nav {
+      position: sticky; top: 0; z-index: 200;
+      height: 56px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 max(24px, 5%);
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(16px) saturate(180%);
+      border-bottom: 1px solid rgba(0,0,0,.07);
+      transition: box-shadow .2s;
+    }
+    .nav.scrolled { box-shadow: 0 2px 20px rgba(0,0,0,.08); }
+
+    .nav__brand { display: flex; align-items: center; gap: 10px; }
+    .nav__logo  { height: 26px; }
+    .nav__name  { font-size: 16px; font-weight: 900; letter-spacing: -.3px; color: var(--ink); }
+
+    .nav__links { display: flex; gap: 24px; list-style: none; align-items: center; }
+    .nav__links a { font-size: 14px; color: var(--ink-2); font-weight: 600; transition: color .15s; }
+    .nav__links a:hover { color: var(--brand); }
+
+    .nav__right { display: flex; align-items: center; gap: 10px; }
+
+    .nav__gh,
+    .nav__doc {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--ink-2); font-weight: 600;
+      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+      transition: all .15s;
+    }
+    .nav__gh:hover { border-color: #24292F; color: #24292F; }
+    .nav__doc:hover { border-color: var(--brand); color: var(--brand); background: rgba(255,102,0,.06); }
+
+    .nav__cta {
+      background: var(--brand); color: #fff;
+      padding: 8px 20px; border-radius: 100px; font-size: 14px; font-weight: 800;
+      display: flex; align-items: center; gap: 5px;
+      transition: all .15s;
+    }
+    .nav__cta:hover { background: var(--brand-dark); transform: translateY(-1px); }
+
+    @media (max-width: 720px) {
+      .nav__links { display: none; }
+      .nav__gh span { display: none; }
+      .nav__doc span { display: none; }
+    }
+
+    /* ─── HACKATHON HERO ───────────────────────────────────────── */
+    .hero {
+      min-height: 760px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 86px max(24px, 5%) 90px;
+      text-align: center;
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(255,209,0,.16), transparent 26%),
+        radial-gradient(circle at 78% 30%, rgba(255,102,0,.13), transparent 28%),
+        linear-gradient(145deg, #161616 0%, #242424 48%, #0F0F10 100%);
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,.04) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 78%);
+      z-index: 0;
+      animation: gridDrift 24s linear infinite;
+    }
+    .hero::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: -1px;
+      height: 86px;
+      background: #fff;
+      clip-path: polygon(0 58%, 100% 18%, 100% 100%, 0 100%);
+      z-index: 1;
+    }
+
+    /* 美团 Hackathon 徽章 */
+    .hackathon-badge {
+      position: relative; z-index: 2;
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--mt-yellow); color: var(--mt-dark);
+      border-radius: 100px; padding: 8px 20px;
+      font-size: 13px; font-weight: 900; letter-spacing: .5px;
+      margin-bottom: 22px; box-shadow: 0 4px 20px rgba(255,209,0,.35);
+      animation: fadeUp .7s ease both, badgeGlow 3.8s ease-in-out infinite;
+    }
+    .hackathon-badge svg { width: 16px; height: 16px; }
+
+    .hero__inner {
+      position: relative; z-index: 2; max-width: 980px;
+    }
+
+    /* 标题在深色区 */
+    .hero__title {
+      font-size: clamp(38px, 7vw, 72px);
+      font-weight: 900; letter-spacing: -2px; line-height: 1.1;
+      margin-bottom: 18px; color: #fff;
+      text-wrap: balance;
+      animation: fadeUp .75s .08s ease both;
+    }
+    .hero__title em { font-style: normal; color: var(--mt-yellow); }
+
+    .hero__sub {
+      font-size: clamp(15px, 2vw, 18px); color: rgba(255,255,255,.68);
+      max-width: 680px; margin: 0 auto 24px; line-height: 1.85;
+      animation: fadeUp .75s .18s ease both;
+    }
+
+    .hero__proof {
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+      margin: 0 auto 30px; max-width: 760px;
+      animation: fadeUp .75s .28s ease both;
+    }
+    .hero__proof span {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 13px; border-radius: 999px;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      color: rgba(255,255,255,.78); font-size: 12.5px; font-weight: 700;
+      backdrop-filter: blur(10px);
+      transition: transform .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .hero__proof span:hover { transform: translateY(-2px); border-color: rgba(255,209,0,.38); background: rgba(255,255,255,.12); }
+    .hero__proof span::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--mt-yellow); box-shadow: 0 0 14px rgba(255,209,0,.7);
+    }
+
+    .hero__ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation: fadeUp .75s .38s ease both; }
+
+    .btn-mt {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--mt-yellow); color: var(--mt-dark);
+      padding: 14px 32px; border-radius: 100px; font-size: 16px; font-weight: 900;
+      box-shadow: 0 4px 20px rgba(255,209,0,.35); transition: all .2s;
+    }
+    .btn-mt:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,209,0,.4); }
+
+    .btn-outline-white {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: rgba(255,255,255,.8);
+      padding: 13px 28px; border-radius: 100px; font-size: 16px; font-weight: 700;
+      border: 1.5px solid rgba(255,255,255,.25); transition: all .2s;
+    }
+    .btn-outline-white:hover { border-color: rgba(255,255,255,.6); color: #fff; }
+    .btn-doc-white { background: rgba(255,255,255,.08); }
+    .btn-doc-white:hover { background: rgba(255,255,255,.13); }
+
+    /* 手机 Mockup */
+    .hero__device {
+      margin-top: 44px; display: flex; justify-content: center; perspective: 1400px;
+      position: relative; z-index: 2;
+      animation: fadeUp .85s .5s ease both;
+    }
+    .device-phone {
+      width: 250px; height: 510px; background: #111;
+      border-radius: 38px; overflow: hidden; flex-shrink: 0;
+      box-shadow:
+        0 0 0 8px rgba(255,255,255,.96),
+        0 0 0 10px rgba(255,209,0,.28),
+        0 36px 90px rgba(0,0,0,.46);
+      transform: rotateY(-5deg) rotateX(2deg);
+      animation: phoneFloat 6s ease-in-out infinite;
+    }
+    .phone-screen {
+      width: 100%; height: 100%;
+      background: linear-gradient(170deg, #18181B, #222226);
+      padding: 18px 14px 14px; display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }
+    .phone-screen::after {
+      content: ''; position: absolute; inset: -40% -80%;
+      background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.12) 50%, transparent 58%);
+      transform: translateX(-45%);
+      animation: screenSheen 5.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .phone-bar {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+    }
+    .phone-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.8); }
+    .phone-dots { display: flex; gap: 4px; }
+    .phone-dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.15); }
+    .chat-msgs { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .msg { border-radius: 14px; padding: 10px 12px; font-size: 11.5px; line-height: 1.5; max-width: 86%; }
+    .msg--u { background: var(--brand); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+    .msg--a { background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); align-self: flex-start; border-bottom-left-radius: 3px; }
+    .route-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px 12px; margin-top: 2px; }
+    .rs { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .rs:last-child { border-bottom: none; padding-bottom: 0; }
+    .rs-t { font-size: 10px; color: var(--mt-yellow); font-weight: 700; min-width: 34px; padding-top: 1px; }
+    .rs-n { font-size: 11px; color: rgba(255,255,255,.8); font-weight: 700; }
+    .rs-m { font-size: 10px; color: rgba(255,255,255,.38); margin-top: 1px; }
+
+    /* ─── 美团 HACKATHON 信息栏 ─────────────────────────────────── */
+    .mt-info-bar {
+      background: var(--mt-yellow);
+      padding: 20px max(24px, 5%);
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 28px; text-align: center;
+    }
+    .mt-info-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 800; color: var(--mt-dark);
+    }
+    .mt-info-item svg { width: 18px; height: 18px; }
+    .mt-info-item span { font-weight: 500; color: rgba(26,26,26,.65); font-size: 12px; margin-left: 2px; }
+
+    /* ─── STATS ─────────────────────────────────────────────────── */
+    .stats-bar {
+      background: var(--mt-dark); padding: 28px max(24px, 5%);
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 40px;
+    }
+    .stat { text-align: center; }
+    .stat__val   { font-size: 34px; font-weight: 900; color: var(--mt-yellow); letter-spacing: -1px; }
+    .stat__label { font-size: 12px; color: rgba(255,255,255,.45); margin-top: 2px; }
+
+    /* ─── SECTION BASE ──────────────────────────────────────────── */
+    .section { padding: 88px max(24px, 5%); }
+    .section--gray { background: var(--bg); }
+    .section--center { text-align: center; }
+    .section--center .section-sub { margin-left: auto; margin-right: auto; }
+
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--brand); margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(26px, 4.5vw, 44px); font-weight: 900;
+      letter-spacing: -1px; line-height: 1.18; margin-bottom: 12px;
+    }
+    .section-sub {
+      font-size: 16px; color: var(--ink-3); line-height: 1.75;
+      max-width: 500px; margin-bottom: 52px;
+    }
+
+    /* ─── 美团 HACKATHON HIGHLIGHT ─────────────────────────────── */
+    .mt-hackathon-card {
+      background: var(--mt-dark);
+      border-radius: 24px; padding: 36px 32px;
+      display: flex; align-items: center; gap: 28px;
+      max-width: 900px; margin: 0 auto 52px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.12);
+      flex-wrap: wrap;
+    }
+    .mt-hk-logo {
+      flex-shrink: 0;
+      background: var(--mt-yellow); color: var(--mt-dark);
+      border-radius: 16px; padding: 14px 20px;
+      font-size: 22px; font-weight: 900; letter-spacing: 1px;
+      white-space: nowrap;
+    }
+    .mt-hk-body { flex: 1; min-width: 200px; }
+    .mt-hk-body h3 { font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 8px; }
+    .mt-hk-body p  { font-size: 14px; color: rgba(255,255,255,.5); line-height: 1.65; }
+    .mt-hk-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .mt-hk-tag {
+      background: rgba(255,209,0,.12); color: var(--mt-yellow);
+      border: 1px solid rgba(255,209,0,.2);
+      border-radius: 100px; padding: 3px 12px; font-size: 12px; font-weight: 700;
+    }
+
+    /* ─── FEATURES GRID ─────────────────────────────────────────── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 18px; max-width: 1100px; margin: 0 auto;
+    }
+    .feat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 28px 24px; transition: transform .22s, box-shadow .22s;
+    }
+    .feat-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
+    .feat-card--dark { background: var(--mt-dark); border-color: var(--mt-dark); color: #fff; }
+
+    .feat-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+    }
+    .feat-icon svg { width: 22px; height: 22px; }
+    .fi-o  { background: rgba(255,102,0,.1);  color: var(--brand); }
+    .fi-b  { background: rgba(0,122,255,.1);  color: #007AFF; }
+    .fi-g  { background: rgba(52,199,89,.1);  color: #34C759; }
+    .fi-p  { background: rgba(175,82,222,.1); color: #AF52DE; }
+    .fi-t  { background: rgba(90,200,250,.12);color: #5AC8FA; }
+    .fi-y  { background: rgba(255,209,0,.15); color: #CC9900; }
+    .fi-wh { background: rgba(255,255,255,.1); color: rgba(255,255,255,.8); }
+
+    .feat-card__title { font-size: 17px; font-weight: 800; margin-bottom: 9px; letter-spacing: -.2px; }
+    .feat-card--dark .feat-card__title { color: #fff; }
+    .feat-card__desc  { font-size: 13.5px; color: var(--ink-3); line-height: 1.72; }
+    .feat-card--dark .feat-card__desc  { color: rgba(255,255,255,.48); }
+    .feat-tag {
+      display: inline-block; margin-top: 14px; padding: 3px 12px; border-radius: 100px;
+      font-size: 11.5px; font-weight: 700; background: rgba(255,102,0,.08); color: var(--brand);
+    }
+
+    /* ─── HOW IT WORKS ──────────────────────────────────────────── */
+    .how-grid { max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; }
+    @media (max-width: 740px) { .how-grid { grid-template-columns: 1fr; gap: 36px; } }
+
+    .how-step {
+      display: grid; grid-template-columns: 50px 1fr; gap: 18px; align-items: start;
+      padding: 26px 0; border-bottom: 1px solid var(--border);
+    }
+    .how-step:last-child { border-bottom: none; }
+    .how-num {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      background: var(--brand); color: #fff; font-size: 16px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .how-title { font-size: 17px; font-weight: 800; margin-bottom: 7px; }
+    .how-desc  { font-size: 13.5px; color: var(--ink-3); line-height: 1.7; }
+    .how-eg {
+      margin-top: 11px; padding: 11px 14px; font-size: 13px; color: var(--ink-2);
+      background: var(--bg); border-left: 3px solid var(--brand); border-radius: 0 8px 8px 0;
+    }
+    .how-eg strong { color: var(--brand); }
+
+    /* ─── SCENES ────────────────────────────────────────────────── */
+    .scenes-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 14px; max-width: 1100px; margin: 0 auto;
+    }
+    @media (max-width: 880px) { .scenes-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 520px) { .scenes-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .scene-card {
+      border-radius: 18px; overflow: hidden; aspect-ratio: 3/4;
+      position: relative; transition: transform .22s;
+    }
+    .scene-card:hover { transform: scale(1.03); }
+    .scene-bg  { position: absolute; inset: 0; }
+    .s-cu { background: linear-gradient(155deg,#1a237e,#3949ab,#5c6bc0); }
+    .s-fo { background: linear-gradient(155deg,#bf360c,#e64a19,#ff7043); }
+    .s-na { background: linear-gradient(155deg,#1b5e20,#388e3c,#66bb6a); }
+    .s-fa { background: linear-gradient(155deg,#4a148c,#7b1fa2,#ab47bc); }
+    .s-dt { background: linear-gradient(155deg,#880e4f,#c2185b,#ec407a); }
+    .scene-icon {
+      position: absolute; top: 14px; left: 14px;
+      width: 34px; height: 34px; border-radius: 9px;
+      background: rgba(255,255,255,.18); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; color: #fff;
+    }
+    .scene-icon svg { width: 18px; height: 18px; }
+    .scene-info {
+      position: absolute; bottom: 0; left: 0; right: 0; padding: 12px;
+      background: linear-gradient(transparent, rgba(0,0,0,.55));
+    }
+    .scene-name { font-size: 14px; font-weight: 800; color: #fff; }
+    .scene-sub  { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
+
+    /* ─── TESTIMONIALS ──────────────────────────────────────────── */
+    .testi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; max-width: 960px; margin: 0 auto; }
+    .testi-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 24px 20px; box-shadow: var(--shadow); }
+    .testi-stars { display: flex; gap: 2px; margin-bottom: 10px; }
+    .testi-stars svg { width: 13px; height: 13px; color: #FF9500; }
+    .testi-text { font-size: 13.5px; color: var(--ink-2); line-height: 1.75; margin-bottom: 16px; }
+    .testi-user { display: flex; align-items: center; gap: 10px; }
+    .testi-av   { width: 36px; height: 36px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .testi-name { font-size: 13px; font-weight: 800; }
+    .testi-role { font-size: 11px; color: var(--ink-3); }
+
+    /* ─── GITHUB SECTION ─────────────────────────────────────────── */
+    .gh-wrap { display: flex; justify-content: center; }
+    .gh-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px 36px; max-width: 460px; width: 100%; text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .gh-icon { width: 52px; height: 52px; background: #24292F; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: #fff; }
+    .gh-icon svg { width: 26px; height: 26px; }
+    .gh-title { font-size: 19px; font-weight: 900; margin-bottom: 8px; }
+    .gh-desc  { font-size: 13.5px; color: var(--ink-3); line-height: 1.65; margin-bottom: 18px; }
+    .gh-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #24292F; color: #fff; border-radius: 10px;
+      padding: 11px 22px; font-size: 14px; font-weight: 800; transition: all .15s;
+    }
+    .gh-btn:hover { background: #374151; transform: translateY(-1px); }
+    .gh-btn svg { width: 16px; height: 16px; }
+    .gh-repo { font-size: 12px; color: var(--ink-3); margin-top: 10px; font-family: "Consolas", "Fira Code", monospace; }
+
+    /* ─── 美团 POWERED BY ─────────────────────────────────────────── */
+    .mt-powered {
+      background: var(--mt-dark); padding: 44px max(24px, 5%);
+      text-align: center;
+    }
+    .mt-powered__label { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.35); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
+    .mt-powered__logos { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 24px; }
+    .mt-logo-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 100px; padding: 10px 20px;
+      font-size: 14px; font-weight: 800; color: rgba(255,255,255,.75);
+    }
+    .mt-logo-pill--yellow { background: rgba(255,209,0,.15); border-color: rgba(255,209,0,.25); color: var(--mt-yellow); }
+    .mt-logo-pill svg { width: 16px; height: 16px; }
+    .mt-logo-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .6; }
+
+    /* ─── CTA ────────────────────────────────────────────────────── */
+    .cta-section {
+      background: var(--mt-dark); padding: 88px max(24px, 5%); text-align: center; position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 70% 50%, rgba(255,209,0,.08) 0%, transparent 70%);
+    }
+    .cta-title { position: relative; font-size: clamp(28px, 5vw, 52px); font-weight: 900; color: #fff; letter-spacing: -1.5px; margin-bottom: 14px; }
+    .cta-title span { color: var(--mt-yellow); }
+    .cta-sub   { position: relative; font-size: 17px; color: rgba(255,255,255,.45); margin-bottom: 38px; }
+    .cta-btns  { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .btn-yellow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--mt-yellow); color: var(--mt-dark);
+      padding: 14px 32px; border-radius: 100px; font-size: 16px; font-weight: 900;
+      box-shadow: 0 4px 20px rgba(255,209,0,.3); transition: all .2s;
+    }
+    .btn-yellow:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,209,0,.4); }
+    .btn-ghost-w {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: rgba(255,255,255,.7);
+      padding: 13px 28px; border-radius: 100px; font-size: 16px; font-weight: 700;
+      border: 1.5px solid rgba(255,255,255,.2); transition: all .2s;
+    }
+    .btn-ghost-w:hover { border-color: rgba(255,255,255,.55); color: #fff; }
+
+    .cta-badges { position: relative; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; }
+    .cta-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 100px; padding: 6px 14px; font-size: 12px; color: rgba(255,255,255,.5);
+    }
+    .cta-badge svg { width: 12px; height: 12px; }
+
+    /* ─── FOOTER ─────────────────────────────────────────────────── */
+    .footer { background: #0D0D0D; padding: 48px max(24px, 5%) 26px; color: rgba(255,255,255,.38); }
+    .footer-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 32px; margin-bottom: 40px; }
+    .footer-brand { max-width: 240px; }
+    .footer-logo  { height: 24px; margin-bottom: 10px; filter: brightness(0) invert(1); opacity: .7; }
+    .footer-tagline { font-size: 12.5px; line-height: 1.7; }
+
+    .footer-cols { display: flex; gap: 44px; flex-wrap: wrap; }
+    .footer-col__h { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
+    .footer-col a, .footer-col span {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12.5px; color: rgba(255,255,255,.36); line-height: 2.3; transition: color .15s;
+    }
+    .footer-col a:hover { color: var(--mt-yellow); }
+    .footer-col svg { width: 11px; height: 11px; }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.06); padding-top: 20px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 11.5px;
+    }
+    .footer-mt-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,209,0,.1); color: var(--mt-yellow); border-radius: 6px;
+      padding: 3px 10px; font-size: 11px; font-weight: 700;
+    }
+
+    /* ─── REVEAL ANIMATION ────────────────────────────────────────── */
+    .reveal { opacity: 0; transform: translateY(22px); transition: opacity .5s ease, transform .5s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes gridDrift {
+      from { background-position: 0 0, 0 0; }
+      to { background-position: 64px 64px, 64px 64px; }
+    }
+    @keyframes badgeGlow {
+      0%, 100% { box-shadow: 0 4px 20px rgba(255,209,0,.32); }
+      50% { box-shadow: 0 6px 32px rgba(255,209,0,.52); }
+    }
+    @keyframes phoneFloat {
+      0%, 100% { transform: rotateY(-5deg) rotateX(2deg) translateY(0); }
+      50% { transform: rotateY(-3deg) rotateX(2deg) translateY(-10px); }
+    }
+    @keyframes screenSheen {
+      0%, 42% { transform: translateX(-55%); opacity: 0; }
+      52% { opacity: 1; }
+      72%, 100% { transform: translateX(55%); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .hero__device { display: none; }
+      .section { padding: 60px max(16px, 4%); }
+      .stats-bar { gap: 24px; }
+      .mt-hackathon-card { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<!-- Inline SVG Sprite — 全部本地，零外部请求 -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+    <symbol id="i-arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-2"/><rect x="6" y="18" width="12" height="4" rx="1"/><path d="M6 9a6 6 0 0 0 12 0"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <!-- GitHub octicon -->
+    <symbol id="i-gh" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+  </svg>
+
+
+<!-- ─── 美团顶栏 ───────────────────────────────────────────────── -->
+<div class="mt-topbar">
+  <span class="mt-topbar-logo">美团</span>
+  <strong>Hackathon 2026</strong>
+  本地生活执行 Agent · 从推荐到履约
+  <svg class="icon" width="13" height="13"><use href="#i-trophy"/></svg>
+</div>
+
+<!-- ─── NAV ──────────────────────────────────────────────────────── -->
+<nav class="nav" id="nav">
+  <a class="nav__brand" href="/">
+    <img src="/assets/main_logo.png" alt="半日闲 AI" class="nav__logo"
+         onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'nav__name',textContent:'半日闲 AI'}))">
+  </a>
+  <ul class="nav__links">
+    <li><a href="#features">产品特色</a></li>
+    <li><a href="#how">工作原理</a></li>
+    <li><a href="#scenes">适合场景</a></li>
+    <li><a href="#github">开源</a></li>
+  </ul>
+  <div class="nav__right">
+    <a href="https://github.com/yuanjianzhang0/banrixian" target="_blank" rel="noopener" class="nav__gh">
+      <svg class="icon" width="15" height="15"><use href="#i-gh"/></svg>
+      <span>GitHub</span>
+    </a>
+    <a href="/appdix/%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3.pdf" download class="nav__doc">
+      <svg class="icon" width="15" height="15"><use href="#i-ext"/></svg>
+      <span>设计文档</span>
+    </a>
+    <a href="/app" class="nav__cta">
+      立即体验
+      <svg class="icon" width="13" height="13"><use href="#i-arr"/></svg>
+    </a>
+  </div>
+</nav>
+
+<!-- ─── HERO ──────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero__inner">
+    <div class="hackathon-badge">
+      <svg class="icon" width="16" height="16"><use href="#i-trophy"/></svg>
+      美团 Hackathon 2026 · 本地生活执行 Agent
+    </div>
+
+    <h1 class="hero__title">不止推荐，<em>直接安排</em></h1>
+
+    <p class="hero__sub">
+      面向美团本地生活场景的短时活动执行 Agent。<br>
+      它不只告诉你去哪儿，而是同时检查天气、余位、动线和同行人偏好，<br>
+      生成可确认的预约、下单、通知与分享动作。
+    </p>
+
+    <div class="hero__proof" aria-label="核心能力">
+      <span>真实地点库</span>
+      <span>餐厅余位校验</span>
+      <span>多方案评分</span>
+      <span>预约/下单草稿</span>
+      <span>同行人通知</span>
+    </div>
+
+    <div class="hero__ctas">
+      <a href="/app" class="btn-mt">
+        立即体验
+        <svg class="icon" width="15" height="15"><use href="#i-arr"/></svg>
+      </a>
+      <a href="https://github.com/yuanjianzhang0/banrixian" target="_blank" rel="noopener" class="btn-outline-white">
+        <svg class="icon" width="15" height="15"><use href="#i-gh"/></svg>
+        查看源码
+      </a>
+      <a href="/appdix/%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3.pdf" download class="btn-outline-white btn-doc-white">
+        <svg class="icon" width="15" height="15"><use href="#i-ext"/></svg>
+        下载设计文档
+      </a>
+    </div>
+
+    <!-- 手机 Mockup -->
+    <div class="hero__device">
+      <div class="device-phone">
+        <div class="phone-screen">
+          <div class="phone-bar">
+            <div class="phone-dots"><span></span><span></span><span></span></div>
+            <span class="phone-title">半日闲 AI</span>
+            <div class="phone-dots" style="opacity:0"><span></span></div>
+          </div>
+          <div class="chat-msgs">
+            <div class="msg msg--u">明晚带老婆和孩子出去，孩子迷恐龙，晚饭别太油</div>
+            <div class="msg msg--a">已生成可执行方案：路线、餐厅余位、预约草稿和家人摘要 ✓</div>
+            <div class="route-card">
+              <div class="rs"><span class="rs-t">16:30</span><div><div class="rs-n">北京自然博物馆</div><div class="rs-m">恐龙化石 · 亲子低强度</div></div></div>
+              <div class="rs"><span class="rs-t">18:00</span><div><div class="rs-n">清淡粤菜馆</div><div class="rs-m">少油低负担 · 已检查余位</div></div></div>
+              <div class="rs"><span class="rs-t">19:10</span><div><div class="rs-n">发送给家人确认</div><div class="rs-m">摘要 + 预约草稿待确认</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 美团 HACKATHON 信息栏 ──────────────────────────────────── -->
+<div class="mt-info-bar">
+  <div class="mt-info-item">
+    <svg><use href="#i-trophy"/></svg>
+    美团 Hackathon 2026
+    <span>参赛作品</span>
+  </div>
+  <div class="mt-info-item">
+    <svg><use href="#i-map"/></svg>
+    本地生活赛道
+    <span>到店·到家·通知</span>
+  </div>
+  <div class="mt-info-item">
+    <svg><use href="#i-zap"/></svg>
+    DeepSeek V4 Flash 驱动
+    <span>LLM 工具编排</span>
+  </div>
+  <div class="mt-info-item">
+    <svg><use href="#i-code"/></svg>
+    完全开源
+    <span>GitHub</span>
+  </div>
+</div>
+
+<!-- ─── STATS ─────────────────────────────────────────────────────── -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat__val">60+</div><div class="stat__label">真实地点库</div></div>
+  <div class="stat"><div class="stat__val">10+</div><div class="stat__label">工具链协同</div></div>
+  <div class="stat"><div class="stat__val">3</div><div class="stat__label">候选方案评分</div></div>
+  <div class="stat"><div class="stat__val">一键</div><div class="stat__label">确认后执行</div></div>
+</div>
+
+<!-- ─── 参赛亮点（美团黑客松专属）──────────────────────────────── -->
+<section class="section section--center" id="features">
+  <div style="max-width:1100px;margin:0 auto">
+    <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-trophy"/></svg> 美团黑客松参赛项目</p>
+    <h2 class="section-title">把美团本地生活能力，包装成一个会办事的 Agent</h2>
+    <p class="section-sub">基于美团黑客松赛题，我们构建了一套完整的短时活动执行链路：自然语言目标 → 多方案规划 → 真实地点与余位检查 → 预约/下单/通知草稿 → 用户确认后执行。</p>
+
+    <!-- 参赛信息卡 -->
+    <div class="mt-hackathon-card reveal">
+      <div class="mt-hk-logo">美团<br>黑客松</div>
+      <div class="mt-hk-body">
+        <h3>半日闲 AI · 本地生活执行 Agent</h3>
+        <p>本项目围绕“帮用户把事情做完”设计，不停留在搜索推荐，而是把吃喝玩乐路线、餐厅余位、蛋糕/鲜花等到家动作、同行人通知和确认后执行合成一条可落地流程。</p>
+        <div class="mt-hk-tags">
+          <span class="mt-hk-tag">AI Agent</span>
+          <span class="mt-hk-tag">本地生活</span>
+          <span class="mt-hk-tag">多方案评分</span>
+          <span class="mt-hk-tag">一键执行</span>
+          <span class="mt-hk-tag">SSE 流式</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FEATURE CARDS ─────────────────────────────────────────────── -->
+<section class="section section--gray section--center">
+  <div style="max-width:1100px;margin:0 auto">
+    <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-zap"/></svg> 产品特色</p>
+    <h2 class="section-title">比赛亮点：从“搜推”升级到“执行闭环”</h2>
+    <p class="section-sub">把用户一句模糊目标，拆成路线、餐饮、履约动作和同行人沟通，最后给出可确认、可执行的完整方案。</p>
+
+    <div class="feat-grid">
+      <div class="feat-card feat-card--dark reveal">
+        <div class="feat-icon fi-wh"><svg><use href="#i-msg"/></svg></div>
+        <div class="feat-card__title">自然语言到执行清单</div>
+        <div class="feat-card__desc">不用填表单，直接说“老婆减肥、孩子迷恐龙、8点前回家”，AI 会拆出人群、时间、饮食、强度和执行动作。</div>
+        <span class="feat-tag" style="background:rgba(255,209,0,.15);color:var(--mt-yellow)">核心能力</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon fi-o"><svg><use href="#i-db"/></svg></div>
+        <div class="feat-card__title">真实地点 + 余位校验</div>
+        <div class="feat-card__desc">地点来自真实库，含地址、营业时间、价格和容量状态。路线卡片会说明为什么选这里、到这里具体做什么。</div>
+        <span class="feat-tag" style="background:rgba(0,0,0,.05);color:var(--ink-2)">60+ 地点</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon fi-b"><svg><use href="#i-users"/></svg></div>
+        <div class="feat-card__title">同行人画像驱动</div>
+        <div class="feat-card__desc">识别家庭、朋友、约会等场景，自动调整路线强度、餐饮类型、预算约束和通知文案，不把所有人当成同一种用户。</div>
+        <span class="feat-tag" style="background:rgba(0,122,255,.08);color:#007AFF">智能识别</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon fi-t"><svg><use href="#i-cloud"/></svg></div>
+        <div class="feat-card__title">按需天气感知</div>
+        <div class="feat-card__desc">当用户提到天气、雨天、户外适宜性时，才调用真实天气工具；服务不可用时明确提示，不编造气温和降雨。</div>
+        <span class="feat-tag" style="background:rgba(90,200,250,.1);color:#5AC8FA">Open-Meteo</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon fi-p"><svg><use href="#i-cpu"/></svg></div>
+        <div class="feat-card__title">多候选方案评分</div>
+        <div class="feat-card__desc">不是线性生成一条路线，而是生成多个候选，对时间、动线、预算、餐饮匹配和可执行性打分，再选最稳的一条。</div>
+        <span class="feat-tag" style="background:rgba(175,82,222,.08);color:#AF52DE">方案裁判</span>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-icon fi-g"><svg><use href="#i-share"/></svg></div>
+        <div class="feat-card__title">预约/下单/通知草稿</div>
+        <div class="feat-card__desc">最终不只展示路线，还生成餐厅预约、商品下单、同行人通知和行程分享草稿，用户确认后一次执行。</div>
+        <span class="feat-tag" style="background:rgba(52,199,89,.08);color:#34C759">履约闭环</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HOW IT WORKS ───────────────────────────────────────────────── -->
+<section class="section" id="how">
+  <div class="how-grid">
+    <div>
+      <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-zap"/></svg> 工作原理</p>
+      <h2 class="section-title">四步，从想法到可执行动作</h2>
+      <p class="section-sub" style="margin-bottom:0">背后是 LLM 需求理解 + 10 余个工具组成的执行链路，既有 AI 判断，也有规则校验和真实工具结果。</p>
+    </div>
+    <div>
+      <div class="how-step reveal">
+        <div class="how-num">1</div>
+        <div>
+          <div class="how-title">说出你的需求</div>
+          <div class="how-desc">用任何方式描述：人数、时间、偏好、禁忌。越自然越好，不需要格式。</div>
+          <div class="how-eg"><strong>"今天下午 3 点出发，我和老婆两个人，吃点东西然后逛逛，别太累"</strong></div>
+        </div>
+      </div>
+      <div class="how-step reveal">
+        <div class="how-num">2</div>
+        <div>
+          <div class="how-title">工具链校验现实约束</div>
+          <div class="how-desc">Agent 调用当前时间、偏好记忆、天气、地点检索、余位状态和排序工具，避免生成过期、重复或不可落地的路线。</div>
+          <div class="how-eg">平均 <strong>10–15 秒</strong>完成，SSE 流式展示每一步</div>
+        </div>
+      </div>
+      <div class="how-step reveal">
+        <div class="how-num">3</div>
+        <div>
+          <div class="how-title">多方案评分后定稿</div>
+          <div class="how-desc">系统生成多个路线候选，比较动线、预算、餐饮、同行人和可执行性，最终输出一条更像真人安排的方案。</div>
+        </div>
+      </div>
+      <div class="how-step reveal">
+        <div class="how-num">4</div>
+        <div>
+          <div class="how-title">确认后执行</div>
+          <div class="how-desc">每个地点卡片说明要买什么、为什么买、怎么预约；动作清单避免重复预定，确认后再统一执行。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SCENES ─────────────────────────────────────────────────────── -->
+<section class="section section--gray section--center" id="scenes">
+  <div style="max-width:1100px;margin:0 auto">
+    <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-map"/></svg> 适合场景</p>
+    <h2 class="section-title">贴近美团的高频本地生活场景</h2>
+    <p class="section-sub">家庭、朋友、约会和临时出门都不只是“去哪儿”，而是吃什么、买什么、订不订、通知谁。</p>
+    <div class="scenes-grid">
+      <div class="scene-card reveal"><div class="scene-bg s-cu"></div><div class="scene-icon"><svg><use href="#i-db"/></svg></div><div class="scene-info"><div class="scene-name">文化艺术</div><div class="scene-sub">博物馆·美术馆·古迹</div></div></div>
+      <div class="scene-card reveal"><div class="scene-bg s-fo"></div><div class="scene-icon"><svg><use href="#i-map"/></svg></div><div class="scene-info"><div class="scene-name">美食探店</div><div class="scene-sub">特色餐厅·小吃·咖啡</div></div></div>
+      <div class="scene-card reveal"><div class="scene-bg s-na"></div><div class="scene-icon"><svg><use href="#i-cloud"/></svg></div><div class="scene-info"><div class="scene-name">自然公园</div><div class="scene-sub">绿道·公园·开放景区</div></div></div>
+      <div class="scene-card reveal"><div class="scene-bg s-fa"></div><div class="scene-icon"><svg><use href="#i-users"/></svg></div><div class="scene-info"><div class="scene-name">亲子出行</div><div class="scene-sub">儿童友好·安全低强度</div></div></div>
+      <div class="scene-card reveal"><div class="scene-bg s-dt"></div><div class="scene-icon"><svg><use href="#i-share"/></svg></div><div class="scene-info"><div class="scene-name">约会计划</div><div class="scene-sub">浪漫路线·氛围感</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TESTIMONIALS ──────────────────────────────────────────────── -->
+<section class="section section--center">
+  <div style="max-width:960px;margin:0 auto">
+    <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-star"/></svg> 典型场景</p>
+    <h2 class="section-title">比赛 Demo 重点展示这些能力</h2>
+    <p class="section-sub">下面是可直接用于演示的用户请求，能够体现从规划到执行的差异化。</p>
+    <div class="testi-grid">
+      <div class="testi-card reveal">
+        <div class="testi-stars"><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg></div>
+        <p class="testi-text">"明晚带老婆和 5 岁孩子出去，孩子迷恐龙，老婆减肥不想吃太油，8 点前回家。"</p>
+        <div class="testi-user"><div class="testi-av">01</div><div><div class="testi-name">亲子 + 饮食约束</div><div class="testi-role">展示画像、低强度、清淡餐饮</div></div></div>
+      </div>
+      <div class="testi-card reveal">
+        <div class="testi-stars"><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg></div>
+        <p class="testi-text">"这周六下午 4 个人出去，有人想拍照，有人想吃火锅，一个人不太能吃辣，预算人均 200。"</p>
+        <div class="testi-user"><div class="testi-av">02</div><div><div class="testi-name">朋友聚会 + 多偏好冲突</div><div class="testi-role">展示多方案评分和动线控制</div></div></div>
+      </div>
+      <div class="testi-card reveal">
+        <div class="testi-stars"><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg><svg><use href="#i-star"/></svg></div>
+        <p class="testi-text">"帮我安排下午 4-6 点，顺便买花，发给朋友确认；确认后再预约餐厅。"</p>
+        <div class="testi-user"><div class="testi-av">03</div><div><div class="testi-name">路线 + 到家/通知动作</div><div class="testi-role">展示执行清单和防重复预定</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── GITHUB ─────────────────────────────────────────────────────── -->
+<section class="section section--gray section--center" id="github">
+  <div style="max-width:1100px;margin:0 auto">
+    <p class="eyebrow"><svg class="icon" width="13" height="13"><use href="#i-code"/></svg> 开源</p>
+    <h2 class="section-title">完全开源，欢迎 Star</h2>
+    <p class="section-sub">源代码已托管在 GitHub，包含 FastAPI 后端、AI Agent 规划链路、前端 SPA，欢迎贡献。</p>
+    <div class="gh-wrap">
+      <div class="gh-card reveal">
+        <div class="gh-icon"><svg><use href="#i-gh"/></svg></div>
+        <h3 class="gh-title">yuanjianzhang0 / banrixian</h3>
+        <p class="gh-desc">半日闲 AI 完整源代码，美团黑客松参赛作品。FastAPI + DeepSeek + 高德地图的全栈 AI 出行规划系统。</p>
+        <a href="https://github.com/yuanjianzhang0/banrixian" target="_blank" rel="noopener" class="gh-btn">
+          <svg><use href="#i-gh"/></svg>
+          查看 GitHub 仓库
+          <svg><use href="#i-ext"/></svg>
+        </a>
+        <a href="/appdix/%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3.pdf" download class="gh-btn" style="margin-top:10px;background:var(--brand)">
+          <svg><use href="#i-ext"/></svg>
+          下载设计文档
+        </a>
+        <p class="gh-repo">https://github.com/yuanjianzhang0/banrixian</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 美团 POWERED BY ────────────────────────────────────────────── -->
+<div class="mt-powered">
+  <div class="mt-powered__label">技术架构</div>
+  <div class="mt-powered__logos">
+    <span class="mt-logo-pill mt-logo-pill--yellow"><svg class="icon" width="14" height="14"><use href="#i-trophy"/></svg> 美团 Hackathon</span>
+    <span class="mt-logo-pill"><svg class="icon" width="14" height="14"><use href="#i-cpu"/></svg> DeepSeek V4 Flash</span>
+    <span class="mt-logo-pill"><span class="mt-logo-pill__dot"></span> LLM 工具编排</span>
+    <span class="mt-logo-pill"><svg class="icon" width="14" height="14"><use href="#i-map"/></svg> 高德地图 API</span>
+    <span class="mt-logo-pill"><svg class="icon" width="14" height="14"><use href="#i-cloud"/></svg> Open-Meteo</span>
+    <span class="mt-logo-pill"><svg class="icon" width="14" height="14"><use href="#i-gh"/></svg> GitHub</span>
+  </div>
+</div>
+
+<!-- ─── CTA ───────────────────────────────────────────────────────── -->
+<section class="cta-section">
+  <h2 class="cta-title">今天下午，去<span>哪儿</span>？</h2>
+  <p class="cta-sub">让评委看到：这不是搜索推荐，而是能把本地生活任务推进到确认执行。</p>
+  <div class="cta-btns">
+    <a href="/app" class="btn-yellow">立即体验 <svg class="icon" width="15" height="15"><use href="#i-arr"/></svg></a>
+    <a href="https://github.com/yuanjianzhang0/banrixian" target="_blank" rel="noopener" class="btn-ghost-w">
+      <svg class="icon" width="15" height="15"><use href="#i-gh"/></svg> GitHub
+    </a>
+  </div>
+  <div class="cta-badges">
+    <span class="cta-badge"><svg><use href="#i-shield"/></svg> 数据安全</span>
+    <span class="cta-badge"><svg><use href="#i-clock"/></svg> 实时规划</span>
+    <span class="cta-badge"><svg><use href="#i-check"/></svg> 免费使用</span>
+    <span class="cta-badge"><svg><use href="#i-zap"/></svg> DeepSeek 驱动</span>
+    <span class="cta-badge"><svg><use href="#i-gh"/></svg> 完全开源</span>
+    <span class="cta-badge"><svg><use href="#i-trophy"/></svg> 美团黑客松</span>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <img src="/assets/main_logo.png" alt="半日闲 AI" class="footer-logo"
+           onerror="this.replaceWith(Object.assign(document.createElement('div'),{style:'font-size:14px;font-weight:900;color:rgba(255,255,255,.7);margin-bottom:10px',textContent:'半日闲 AI'}))">
+      <p class="footer-tagline">从自然语言目标到本地生活执行清单。<br>美团黑客松 2026 参赛作品。</p>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <div class="footer-col__h">产品</div>
+        <a href="/app"><svg><use href="#i-arr"/></svg> 网页版体验</a>
+        <a href="#features">产品特色</a>
+        <a href="#how">工作原理</a>
+        <a href="#scenes">适合场景</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col__h">技术栈</div>
+        <span>FastAPI + Python</span>
+        <span>DeepSeek V4 Flash</span>
+        <span>高德地图 API</span>
+        <span>Open-Meteo 天气</span>
+        <span>MySQL · PM2 · Nginx</span>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col__h">联系 &amp; 开源</div>
+        <a href="https://github.com/yuanjianzhang0/banrixian" target="_blank" rel="noopener">
+          <svg><use href="#i-gh"/></svg> GitHub 仓库
+        </a>
+        <a href="mailto:zhang8839zhang@gmail.com"><svg><use href="#i-arr"/></svg> zhang8839zhang@gmail.com</a>
+        <span>微信小程序：半日闲AI</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 半日闲 AI · 北京</span>
+    <span class="footer-mt-tag"><svg class="icon" width="11" height="11"><use href="#i-trophy"/></svg> 美团 Hackathon 2026</span>
+    <span>Powered by DeepSeek · 高德地图 · Open-Meteo</span>
+  </div>
+</footer>
+
+<script>
+  const nav = document.getElementById("nav");
+  window.addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 10), { passive: true });
+
+  const revealEls = document.querySelectorAll(".reveal");
+  if ("IntersectionObserver" in window) {
+    const obs = new IntersectionObserver(es => {
+      es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); } });
+    }, { threshold: 0.08 });
+    revealEls.forEach(el => obs.observe(el));
+  } else {
+    revealEls.forEach(el => el.classList.add("visible"));
+  }
+
+  document.querySelectorAll('a[href^="#"]').forEach(a =>
+    a.addEventListener("click", e => {
+      const t = document.querySelector(a.getAttribute("href"));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: "smooth" }); }
+    })
+  );
+</script>
+</body>
+</html>

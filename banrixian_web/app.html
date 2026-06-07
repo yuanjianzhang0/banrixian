@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>半日闲 AI</title>
+    <style>.amap-container,.amap-maps { border-radius: var(--radius,12px); }</style>
+    <link rel="stylesheet" href="/css/base.css?v=20260607-210000" />
+    <link rel="stylesheet" href="/css/components.css?v=20260607-210000" />
+    <link rel="stylesheet" href="/css/layout.css?v=20260607-210000" />
+  </head>
+  <body>
+    <div id="toast" class="toast" aria-live="polite"></div>
+    <div id="app-version" class="app-version">v20260607-210000</div>
+
+    <!-- 登录注册页 -->
+    <div id="auth-screen" class="auth-screen">
+      <div class="auth-brand">
+        <img src="/assets/main_logo.png" alt="半日闲 AI" class="auth-logo" onerror="this.style.display='none'" />
+        <img src="/assets/slogan.png" alt="一句话安排好出行" class="auth-slogan" onerror="this.style.display='none'" />
+        <p class="auth-tagline">想去哪，说一句就好</p>
+      </div>
+
+      <div class="auth-card">
+        <div class="segmented" role="tablist">
+          <button class="segmented__item is-active" data-auth-tab="login">登录</button>
+          <button class="segmented__item" data-auth-tab="register">注册</button>
+        </div>
+
+        <form id="login-form" class="form-stack">
+          <label class="field-label">用户名<input name="username" autocomplete="username" required placeholder="请输入用户名" /></label>
+          <label class="field-label">密码<input name="password" type="password" autocomplete="current-password" required placeholder="请输入密码" /></label>
+          <button class="btn btn--primary btn--wide" type="submit">进入</button>
+        </form>
+
+        <form id="register-form" class="form-stack is-hidden">
+          <label class="field-label">昵称<input name="name" autocomplete="name" placeholder="怎么称呼你" /></label>
+          <label class="field-label">用户名<input name="username" autocomplete="username" required placeholder="设置用户名" /></label>
+          <label class="field-label">密码<input name="password" type="password" autocomplete="new-password" required placeholder="设置密码" /></label>
+          <button class="btn btn--primary btn--wide" type="submit">创建账号</button>
+        </form>
+      </div>
+
+      <div id="captcha-modal" class="captcha-modal is-hidden" aria-modal="true" role="dialog">
+        <div class="captcha-modal__panel">
+          <button id="captcha-modal-close" class="captcha-modal__close" type="button" aria-label="关闭">×</button>
+          <div id="auth-captcha" class="slider-captcha" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主应用 -->
+    <div id="app-shell" class="app-shell is-hidden">
+
+      <!-- 桌面端推荐横幅 -->
+      <div id="desktop-banner" class="desktop-banner">
+        <span>推荐使用手机端小程序获得最佳体验</span>
+        <button id="close-banner" class="banner-close" aria-label="关闭">×</button>
+      </div>
+
+      <!-- 桌面侧边栏 -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__brand">
+          <img src="/assets/main_logo.png" alt="半日闲 AI" class="sidebar__logo" onerror="this.parentElement.innerHTML='<span class=sidebar__name>半日闲 AI</span>'" />
+          <img src="/assets/slogan.png" alt="slogan" class="sidebar__slogan" onerror="this.style.display='none'" />
+        </div>
+
+        <!-- 桌面端二维码推荐区 -->
+        <div class="sidebar-qr-widget">
+          <div class="sidebar-qr-widget__label">手机扫码体验</div>
+          <div class="qr-target sidebar-qr-widget__code" id="sidebar-qr"></div>
+          <p class="sidebar-qr-widget__hint">推荐手机端访问，体验更佳</p>
+        </div>
+
+        <nav class="sidebar__nav">
+          <button class="nav-item is-active" data-route="chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 2 4 5.5 4 10c0 3 1.5 5.5 3.5 7L7 20l3.5-1.5c.5.1 1 .2 1.5.2 4.4 0 8-3.6 8-8S16.4 2 12 2z"/></svg>
+            <span>AI 规划</span>
+          </button>
+          <button class="nav-item" data-route="orders">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span>我的行程</span>
+          </button>
+          <button class="nav-item" data-route="family">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><path d="M17 14c2.2 0 4 1.8 4 4"/></svg>
+            <span>亲友画像</span>
+          </button>
+          <button class="nav-item" data-route="memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/></svg>
+            <span>偏好记忆</span>
+          </button>
+          <button class="nav-item" data-route="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <span>个人中心</span>
+          </button>
+          <button class="nav-item" data-route="showcase">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><polygon points="10 8 16 11 10 14 10 8" fill="currentColor" stroke="none"/></svg>
+            <span>小程序演示</span>
+          </button>
+        </nav>
+
+<div class="sidebar__footer">
+          <button id="sign-button" class="btn btn--outline btn--sm btn--wide">每日签到</button>
+          <button id="logout-button" class="btn btn--ghost btn--sm btn--wide">退出登录</button>
+          <div class="view-toggle">
+            <button id="toggle-view" class="btn btn--ghost btn--sm">切换手机版</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- 主内容区 -->
+      <div class="workspace">
+        <!-- 手机顶栏 -->
+        <header class="topbar" id="topbar">
+          <div class="topbar__brand">
+            <img src="/assets/main_logo.png" alt="半日闲 AI" class="topbar__logo" onerror="this.parentElement.innerHTML='<span class=topbar__name>半日闲 AI</span>'" />
+          </div>
+          <div class="topbar__actions">
+            <!-- 移动端分享二维码按钮 -->
+            <button class="btn btn--ghost btn--sm qr-mobile-btn" id="qr-mobile-trigger" title="分享链接">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="19" y="14" width="2" height="2"/>
+                <rect x="14" y="19" width="2" height="2"/><rect x="18" y="19" width="3" height="2"/>
+              </svg>
+            </button>
+            <button id="sign-button-mobile" class="btn btn--ghost btn--sm">签到</button>
+            <button id="logout-button-mobile" class="btn btn--outline btn--sm">退出</button>
+            <button id="toggle-view-mobile" class="btn btn--ghost btn--sm">桌面版</button>
+          </div>
+        </header>
+
+        <main class="app-main">
+          <div id="view-root" class="view-root"></div>
+        </main>
+
+        <!-- 手机底部导航（5个，与桌面侧边栏功能一致）-->
+        <nav class="bottom-tabs" id="bottom-tabs" aria-label="主导航">
+          <button class="tab-item is-active" data-route="chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 2 4 5.5 4 10c0 3 1.5 5.5 3.5 7L7 20l3.5-1.5c.5.1 1 .2 1.5.2 4.4 0 8-3.6 8-8S16.4 2 12 2z"/></svg>
+            <span>规划</span>
+          </button>
+          <button class="tab-item" data-route="orders">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span>行程</span>
+          </button>
+          <button class="tab-item" data-route="family">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><path d="M17 14c2.2 0 4 1.8 4 4"/></svg>
+            <span>亲友</span>
+          </button>
+          <button class="tab-item" data-route="memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.7-4 3-9 3s-9-1.3-9-3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/></svg>
+            <span>记忆</span>
+          </button>
+          <button class="tab-item" data-route="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <span>我的</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- 移动端 QR 弹窗 -->
+    <div id="qr-mobile-modal" class="qr-mobile-modal is-hidden">
+      <div class="qr-mobile-modal__backdrop" id="qr-modal-backdrop"></div>
+      <div class="qr-mobile-modal__card">
+        <div class="qr-mobile-modal__title">分享给朋友</div>
+        <div class="qr-target qr-mobile-modal__code" id="mobile-qr"></div>
+        <p class="qr-mobile-modal__hint">扫描二维码在手机端打开半日闲 AI</p>
+        <button class="btn btn--outline btn--wide" id="qr-modal-close">关闭</button>
+      </div>
+    </div>
+
+    <!-- 高德地图安全密钥（必须在 script 标签之前）-->
+    <script>
+      window._AMapSecurityConfig = {
+        securityJsCode: "bd8e9bcfb6d6b8ec5fcbe6c4074d5131"
+      };
+    </script>
+    <!-- 高德地图 JS API v2.0 -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=a7253de1c227d451fad7477ecda0cc84&plugin=AMap.Scale,AMap.ToolBar,AMap.Driving,AMap.Walking,AMap.InfoWindow,AMap.PlaceSearch"></script>
+    <!-- QR Code 生成（本地 vendor，避免外部 CDN）-->
+    <script src="/vendor/qrcode.min.js"></script>
+    <script type="module" src="/js/main.js?v=20260607-210000"></script>
+    <script>
+      // 页面加载后初始化所有二维码
+      const QR_URL = "http://120.46.81.119/app";
+      window.initQRCodes = function initQRCodes() {
+        document.querySelectorAll(".qr-target").forEach(function(el) {
+          if (el.querySelector("canvas") || el.querySelector("img")) return; // 已初始化
+          try {
+            new QRCode(el, {
+              text: QR_URL,
+              width: 140, height: 140,
+              colorDark: "#1C1C1E",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.M,
+            });
+          } catch(e) {}
+        });
+      }
+      // DOM 就绪后执行，并监听登录后的 DOM 变化
+      document.addEventListener("DOMContentLoaded", function() {
+        initQRCodes();
+        new MutationObserver(initQRCodes).observe(document.body, { childList: true, subtree: true });
+      });
+    </script>
+  </body>
+</html>
