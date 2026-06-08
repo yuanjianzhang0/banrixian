@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>半日闲 AI — 美团黑客松 · 从想法到下单的本地生活执行 Agent</title>
   <meta name="description" content="半日闲AI：美团黑客松参赛作品。本地生活执行 Agent，读懂自然语言目标，组合真实地点、天气、余位、多方案评分和预约/通知草稿，把半日出行从推荐变成可确认执行。" />
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var share = params.get("share");
+      if (share && window.location.pathname !== "/app") {
+        window.location.replace("/app?share=" + encodeURIComponent(share));
+      }
+    })();
+  </script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
