@@ -18,6 +18,95 @@ function _stepIcon(step) {
   return CAT_ICON[cat] || CAT_ICON.default;
 }
 
+function _firstArray(...values) {
+  for (const value of values) {
+    if (Array.isArray(value) && value.length) return value;
+    if (value && typeof value === "object") {
+      const nested = _firstArray(value.steps, value.items, value.route, value.itinerary);
+      if (nested.length) return nested;
+    }
+  }
+  return [];
+}
+
+function _normalizePlan(raw) {
+  if (!raw || typeof raw !== "object") return {};
+  if (raw.type === "plan" || raw.steps || raw.route || raw.itinerary || raw.action_bundle || raw.actions) return raw;
+  return raw.plan || raw.data?.plan || raw.result?.plan || raw.final_plan || raw.finalPlan || raw;
+}
+
+function _normalizeStep(step) {
+  const payload = step?.payload || {};
+  const location = step?.location || step?.geo || payload.location || {};
+  const lng = step?.lng ?? step?.longitude ?? location.lng ?? location.longitude ?? payload.lng ?? payload.longitude;
+  const lat = step?.lat ?? step?.latitude ?? location.lat ?? location.latitude ?? payload.lat ?? payload.latitude;
+  const start = step?.start_time || step?.startTime || payload.start_time || "";
+  const end = step?.end_time || step?.endTime || payload.end_time || "";
+  return {
+    ...step,
+    time: step?.time || (start && end ? `${start}-${end}` : start),
+    name: step?.name || step?.place_name || step?.placeName || step?.title || step?.target || payload.place_name || payload.name || "未命名地点",
+    category: step?.category || step?.type || payload.category || "",
+    meta: step?.meta || step?.address || payload.address || step?.category || "",
+    reason: step?.reason || step?.why || step?.description || step?.summary || payload.note || "",
+    lng,
+    lat,
+  };
+}
+
+function _extractSteps(plan) {
+  return _firstArray(
+    plan.steps,
+    plan.route,
+    plan.itinerary,
+    plan.schedule,
+    plan.plan?.steps,
+    plan.data?.steps,
+    plan.result?.steps,
+  ).map(_normalizeStep);
+}
+
+function _extractActions(plan) {
+  return _firstArray(
+    plan.action_bundle?.items,
+    plan.execution_actions,
+    plan.actions,
+    plan.orders,
+    plan.plan?.action_bundle?.items,
+  );
+}
+
+function _renderActions(actions) {
+  if (!Array.isArray(actions) || !actions.length) return "";
+  const labels = {
+    reserve: "预约",
+    order: "下单",
+    gift: "购买",
+    sms: "通知",
+    share: "分享",
+    share_route: "分享行程",
+    save_calendar: "日历提醒",
+  };
+  return `
+    <div style="background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 8px rgba(0,0,0,0.06)">
+      <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#18181B">执行清单 · ${actions.length} 项</h3>
+      ${actions.map((action) => {
+        const payload = action?.payload || {};
+        const type = action?.type || "";
+        const target = action?.target || payload.place_name || payload.name || payload.item_name || payload.phone || "";
+        const note = action?.message || action?.note || payload.note || payload.message || payload.item_name || "";
+        return `
+          <div style="padding:10px 0;border-bottom:1px solid #f4f4f4">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+              <span style="background:#fff3ed;color:#D44208;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700">${escapeHtml(labels[type] || type || "动作")}</span>
+              <strong style="font-size:13px;color:#18181B">${escapeHtml(target || "待确认")}</strong>
+            </div>
+            ${note ? `<p style="margin:0;font-size:12px;color:#888;line-height:1.55">${escapeHtml(note)}</p>` : ""}
+          </div>`;
+      }).join("")}
+    </div>`;
+}
+
 function _renderSteps(steps) {
   if (!Array.isArray(steps) || !steps.length) {
     return `<p style="color:#888;font-size:13px;text-align:center;padding:16px">暂无路线步骤</p>`;
@@ -80,8 +169,9 @@ export async function renderShare(root, shareId) {
     const res = await shareApi.getShare(shareId);
     const data = res?.data;
     if (!data?.plan) throw new Error("行程数据不存在");
-    const plan = data.plan;
-    const steps = Array.isArray(plan.steps) ? plan.steps : [];
+    const plan = _normalizePlan(data.plan);
+    const steps = _extractSteps(plan);
+    const actions = _extractActions(plan);
     const intro = plan.intro || data.title || "行程方案";
 
     qs("#share-loading", root).style.display = "none";
@@ -108,6 +198,8 @@ export async function renderShare(root, shareId) {
         <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#18181B">行程安排 · ${steps.length} 个地点</h3>
         ${_renderSteps(steps)}
       </div>
+
+      ${_renderActions(actions)}
 
       <!-- 推广 -->
       <div style="background:linear-gradient(135deg,#fff3ed,#fff8f4);border-radius:14px;padding:18px;text-align:center;border:1px solid #fde8db">

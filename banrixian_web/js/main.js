@@ -2,7 +2,7 @@ import { clearSession, setSession, state, pullChatFromServer } from "./state.js"
 import { qs, qsa, toast } from "./ui.js";
 import { userApi } from "./api.js";
 import { bindAuth } from "./views/auth.js";
-import { renderChat } from "./views/chat.js?v=20260607-210000";
+import { renderChat } from "./views/chat.js?v=20260608-214500";
 import { renderFamily } from "./views/family.js?v=20260607-190000";
 import { renderMemory } from "./views/memory.js";
 import { renderOrders } from "./views/orders.js?v=20260607-210000";
@@ -129,7 +129,7 @@ if (_shareId) {
   shareWrap.id = "share-view-root";
   shareWrap.style.cssText = "min-height:100vh;background:#f4f4f6";
   document.body.appendChild(shareWrap);
-  import("./views/share.js?v=20260607-210000").then(({ renderShare }) => {
+  import("./views/share.js?v=20260608-214500").then(({ renderShare }) => {
     renderShare(shareWrap, _shareId);
   }).catch((err) => {
     shareWrap.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-size:14px">加载失败：${String(err?.message || err)}</div>`;

@@ -1314,11 +1314,46 @@ function _showShareQRModal(shareUrl, title) {
   modal.addEventListener("click", (e) => {
     if (e.target === modal || e.target.closest("[data-modal-cancel]")) modal.remove();
   });
-  document.getElementById("copy-share-link")?.addEventListener("click", () => {
-    navigator.clipboard?.writeText(shareUrl)
-      .then(() => toast("链接已复制"))
-      .catch(() => toast(shareUrl));
+  document.getElementById("copy-share-link")?.addEventListener("click", async (event) => {
+    const btn = event.currentTarget;
+    const oldText = btn.textContent;
+    const ok = await _copyText(shareUrl);
+    if (ok) {
+      btn.textContent = "已复制";
+      toast("链接已复制");
+      setTimeout(() => { btn.textContent = oldText; }, 1200);
+    } else {
+      toast(`复制失败，请手动复制：${shareUrl}`);
+    }
   });
+}
+
+async function _copyText(text) {
+  const value = String(text || "");
+  if (!value) return false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {}
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, value.length);
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
 }
 
 function _downloadCalendar(payload, plan) {
