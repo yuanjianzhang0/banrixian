@@ -57,7 +57,7 @@
   <a href="./LICENSE">
   <img
     alt="License"
-src="https://img.shields.io/github/license/yuanjianzhang0/banrixian.svg?color=blue"
+src="https://img.shields.io/github/license/yuanjianzhang0/banrixian.svg?color=orange"
   >
 </a>
 </p>
