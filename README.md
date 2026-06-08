@@ -54,6 +54,12 @@
   <a href="https://github.com/yuanjianzhang0/banrixian">
     <img alt="Status" src="https://img.shields.io/badge/Status-Demo_Ready-brightgreen">
   </a>
+  <a href="./LICENSE">
+  <img
+    alt="License"
+src="https://img.shields.io/github/license/yuanjianzhang0/banrixian.svg?color=blue"
+  >
+</a>
 </p>
 
 <p align="center">
@@ -1000,30 +1006,6 @@ git push origin feature/your-feature
 | 仓库   | `yuanjianzhang0/banrixian` |
 | 核心理念 | 从推荐走向执行                    |
 | 当前状态 | 产品 Demo 与测试链路已完成           |
-
----
-
-## 📜 License / 开源协议
-
-请根据项目实际使用的开源协议补充 `LICENSE` 文件。
-
-例如：
-
-```text
-MIT License
-Apache License 2.0
-```
-
-添加协议文件后，可以在顶部徽章区域增加：
-
-```html
-<a href="./LICENSE">
-  <img
-    alt="License"
-    src="https://img.shields.io/github/license/yuanjianzhang0/banrixian.svg?color=blue"
-  >
-</a>
-```
 
 ---
 
